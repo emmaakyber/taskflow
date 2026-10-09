@@ -12,7 +12,7 @@ logs:          ## Tail container logs
 
 test: test-backend test-frontend  ## Run every test suite
 
-test-backend:  ## 82 pytest cases, each against the memory and SQLite stores
+test-backend:  ## pytest suite; API and store tests run against both stores
 	cd backend && python -m pytest
 
 test-frontend: ## Vitest + React Testing Library

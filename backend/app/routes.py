@@ -36,6 +36,10 @@ def clean_title(value) -> str:
     title = value.strip()
     if not title:
         raise ValidationError("Field 'title' must not be empty.")
+    try:
+        title.encode("utf-8")
+    except UnicodeEncodeError:
+        raise ValidationError("Field 'title' contains invalid characters.") from None
     if len(title) > TITLE_MAX_LENGTH:
         raise ValidationError(f"Field 'title' must be at most {TITLE_MAX_LENGTH} characters.")
     return title

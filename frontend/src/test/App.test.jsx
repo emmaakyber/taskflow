@@ -115,6 +115,19 @@ describe("App", () => {
     expect(await screen.findByRole("button", { name: "Complete" })).toBeInTheDocument();
   });
 
+  it("keeps the error banner visible after a failed action and still refreshes", async () => {
+    primeApi({ tasks: [task({ completed: true })], stats: { total: 1, completed: 1, pending: 0 } });
+    api.updateTask.mockRejectedValue(new api.ApiError(404, "not_found", "Task 1 does not exist"));
+    render(<App />);
+    await screen.findByText("Write report");
+
+    primeApi(); // the server no longer has the task
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+
+    expect(await screen.findByText(/No tasks yet/)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Task 1 does not exist");
+  });
+
   it("deletes a task and refreshes the list", async () => {
     primeApi({ tasks: [task()], stats: { total: 1, completed: 0, pending: 1 } });
     api.deleteTask.mockResolvedValue(null);

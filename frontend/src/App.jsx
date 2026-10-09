@@ -19,14 +19,14 @@ export default function App() {
   // numbers shown are always the server's numbers.
   // A sequence number guards against a slow earlier response (e.g. from a
   // previous filter) landing after a newer one and overwriting it.
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ keepError = false } = {}) => {
     const seq = ++requestSeq.current;
     try {
       const [nextTasks, nextStats] = await Promise.all([api.listTasks(filter), api.getStats()]);
       if (seq !== requestSeq.current) return;
       setTasks(nextTasks);
       setStats(nextStats);
-      setError(null);
+      if (!keepError) setError(null);
     } catch (err) {
       if (seq === requestSeq.current) setError(err.message);
     } finally {
@@ -40,12 +40,16 @@ export default function App() {
 
   const withBusy = async (id, action) => {
     setBusyIds((prev) => new Set(prev).add(id));
+    let failed = false;
     try {
       await action();
     } catch (err) {
+      failed = true;
       setError(err.message);
     } finally {
-      await refresh(); // even after a failure (e.g. 404), show the server's current state
+      // Even after a failure (e.g. 404), show the server's current state,
+      // but keep the error banner so the user sees what went wrong.
+      await refresh({ keepError: failed });
       setBusyIds((prev) => {
         const next = new Set(prev);
         next.delete(id);

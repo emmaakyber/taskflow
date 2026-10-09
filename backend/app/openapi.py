@@ -90,7 +90,14 @@ SPEC = {
                             "schema": {
                                 "type": "object",
                                 "required": ["title"],
-                                "properties": {"title": {"type": "string", "minLength": 1, "maxLength": 200}},
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200,
+                                        "description": "Trimmed before validation; 1 to 200 characters after trimming.",
+                                    }
+                                },
                             }
                         }
                     },
@@ -116,7 +123,12 @@ SPEC = {
                                 "minProperties": 1,
                                 "additionalProperties": False,
                                 "properties": {
-                                    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+                                    "title": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200,
+                                        "description": "Trimmed before validation; 1 to 200 characters after trimming.",
+                                    },
                                     "completed": {"type": "boolean"},
                                 },
                             }

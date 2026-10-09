@@ -111,7 +111,7 @@ Every error, including the ones Flask raises itself (unknown route, wrong method
 
 | Status | `code`                   | When |
 |--------|--------------------------|------|
-| 400    | `validation_error`       | missing/empty/non-string/too-long title, invalid `status` filter, malformed JSON, body not an object |
+| 400    | `validation_error`       | missing/empty/non-string/too-long title, invalid `status` filter, malformed JSON, body not an object; on PATCH: empty body, unknown field, non-boolean `completed` |
 | 404    | `not_found`              | unknown task id, or unknown route |
 | 405    | `method_not_allowed`     | e.g. `PATCH /tasks` |
 | 415    | `unsupported_media_type` | body sent without `Content-Type: application/json` |
@@ -124,7 +124,7 @@ backend/
   app/__init__.py     app factory, CORS, health route
   app/routes.py       /tasks blueprint and request validation
   app/store.py        Task dataclass + TaskStore (in-memory; the only place state lives)
-  app/sqlite_store.py SqliteTaskStore: same six methods, opt-in via TASK_STORE=sqlite
+  app/sqlite_store.py SqliteTaskStore: same seven methods, opt-in via TASK_STORE=sqlite
   app/errors.py       ApiError classes and the global error handlers
   app/openapi.py      OpenAPI 3.0 document
   app/request_id.py   X-Request-ID on every request/response
@@ -150,18 +150,18 @@ docker-compose.yml
 ## Assumptions and simplifications
 
 - **In-memory storage by default, one gunicorn worker.** Tasks live in the process, as the brief allows. Running one worker with eight threads (instead of several workers) is deliberate: multiple workers would each hold a different task list. The store takes a lock around every operation and hands back snapshot copies, so a reader can never see a half-applied update from another thread. Restarting the container clears all tasks.
-- **SQLite is there to prove the boundary, not to change the default.** `SqliteTaskStore` implements the same six methods. The whole API test suite is parametrized to run against both, so "swap the store" is tested, not promised. With `TASK_STORE=sqlite` the data lives on a named volume and survives restarts.
+- **SQLite is there to prove the boundary, not to change the default.** `SqliteTaskStore` implements the same seven methods. The whole API test suite is parametrized to run against both, so "swap the store" is tested, not promised. With `TASK_STORE=sqlite` the data lives on a named volume and survives restarts.
 - **Integer IDs, monotonic, never reused.** Simpler for the sample `curl` commands than UUIDs, and a deleted id stays a clean 404.
 - **Completing is idempotent.** A second `PUT .../complete` returns 200 with the unchanged task. A 409 would be defensible; I chose the behaviour that is friendlier to retries.
 - **Undo is `PATCH {"completed": false}`, not a separate endpoint.** The brief's `PUT /complete` stays exactly as specified; PATCH is the general edit path (title and/or completion) and the UI's Undo button uses it. No reordering or due dates.
-- **No auth, no pagination, no persistence.** Out of scope for a two-hour exercise, and each would be a layer on top of the current structure rather than a rewrite.
+- **No auth, no pagination; persistence only via the opt-in SQLite store.** Out of scope for a two-hour exercise, and each would be a layer on top of the current structure rather than a rewrite.
 - **Stats come from the API.** The UI calls `/tasks/stats` after every change rather than counting client-side, so the numbers shown are always the server's.
 - **Dev dependencies are in the backend image** so `docker-compose run --rm backend pytest` works out of the box. In a production image I'd split a test stage.
 - **Minimal styling, no component library.** Plain CSS, a handful of classes, accessible labels and `aria-live` on the stats.
 
 ## Extra: MCP server
 
-`extras/mcp/server.py` wraps the same API as five MCP tools (`list_tasks`, `create_task`, `complete_task`, `delete_task`, `task_stats`) so an agent in Claude Desktop or Claude Code can manage tasks. It is a thin client, not part of `docker-compose up`, and it passes the API's own error messages through to the agent (a 404 arrives as `not_found: Task 9999 does not exist`) so the model can correct itself. Setup in [extras/mcp/README.md](extras/mcp/README.md).
+`extras/mcp/server.py` wraps the same API as six MCP tools (`list_tasks`, `create_task`, `complete_task`, `update_task`, `delete_task`, `task_stats`) so an agent in Claude Desktop or Claude Code can manage tasks. It is a thin client, not part of `docker-compose up`, and it passes the API's own error messages through to the agent (a 404 arrives as `not_found: Task 9999 does not exist`) so the model can correct itself. Setup in [extras/mcp/README.md](extras/mcp/README.md).
 
 ## Questions
 
@@ -175,7 +175,7 @@ Each error class has a test: `tests/test_api.py::TestCreateTask::test_rejects_ba
 
 ### What tests would you write if given more time?
 
-- **More frontend tests.** Eight exist (`frontend/src/test/App.test.jsx`): render, empty state, create success and inline validation error, complete, delete, filter tabs, load-failure banner. I'd add: buttons disabled while a request is in flight, the stale-response guard when switching filters quickly, and `api.js` itself against a mocked `fetch` (204 handling, non-JSON bodies, network errors).
+- **More frontend tests.** Ten exist (`frontend/src/test/App.test.jsx`): render, empty state, create success and inline validation error, complete, undo, failed action keeps its banner, delete, filter tabs, load-failure banner. I'd add: buttons disabled while a request is in flight, the stale-response guard when switching filters quickly, and `api.js` itself against a mocked `fetch` (204 handling, non-JSON bodies, network errors).
 - **A compose-level integration test in CI.** The current CI already does `docker compose up --build` and runs the smoke script, but I'd turn the smoke script into proper assertions with a JSON-aware tool and add the frontend path (`/api/tasks` through nginx) to it.
 - **Property-based test on `TaskStore`** (Hypothesis): for any sequence of create/complete/delete operations, `stats()` always equals what you'd compute from `list()`, and ids are unique and increasing.
 - **Concurrency test with real HTTP**: fire 200 parallel `POST`s at the running gunicorn and assert 200 unique ids. The store-level version of this exists (`test_store.py::test_concurrent_creates_get_unique_ids`); this would prove it through the whole stack.

@@ -1,8 +1,9 @@
 """Gunicorn settings for the container.
 
-One worker on purpose: tasks live in process memory, so multiple workers would
-each hold a different task list. Threads provide concurrency instead; the
-store's lock keeps them safe.
+One worker on purpose: with the default in-memory store, tasks live in process
+memory, so multiple workers would each hold a different task list. Threads
+provide concurrency instead; the store's lock keeps them safe. (With
+TASK_STORE=sqlite this constraint could be lifted.)
 """
 
 import logging

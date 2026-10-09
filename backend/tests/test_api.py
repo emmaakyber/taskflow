@@ -59,6 +59,7 @@ class TestCreateTask:
             ({"title": 42}, "string"),
             ({"title": None}, "string"),
             ({"title": "x" * 201}, "200"),
+            ({"title": "\ud800x"}, "invalid characters"),
         ],
     )
     def test_rejects_bad_title(self, client, payload, fragment):
@@ -88,6 +89,16 @@ class TestCreateTask:
 
 
 class TestGetTask:
+    @pytest.mark.parametrize("method,suffix", [("get", ""), ("put", "/complete"), ("delete", "")])
+    def test_absurdly_large_id_is_404_not_500(self, client, method, suffix):
+        # Must behave the same on both stores; SQLite would otherwise overflow.
+        res = getattr(client, method)(f"/tasks/99999999999999999999{suffix}")
+        assert res.status_code == 404
+        assert res.get_json()["error"]["code"] == "not_found"
+
+    def test_patch_absurdly_large_id_is_404(self, client):
+        assert client.patch("/tasks/99999999999999999999", json={"title": "x"}).status_code == 404
+
     def test_get_existing(self, client, make_task):
         task = make_task()
         assert client.get(f"/tasks/{task['id']}").get_json() == task

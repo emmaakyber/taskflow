@@ -61,6 +61,8 @@ def _jsonschema_compatible(node):
 
 def _validate(instance, schema: dict) -> None:
     # Resolve $ref against the spec's components, then validate strictly.
+    # Note: `format: date-time` is documentation only here; asserting it would
+    # need an extra RFC 3339 validator package, which isn't worth a dependency.
     resolver_schema = _jsonschema_compatible({**schema, "components": SPEC["components"]})
     errors = sorted(Draft7Validator(resolver_schema).iter_errors(instance), key=str)
     assert not errors, "\n".join(e.message for e in errors)

@@ -23,6 +23,16 @@ CREATE TABLE IF NOT EXISTS tasks (
 """
 
 
+_MAX_ROWID = 2**63 - 1
+
+
+def _check_id(task_id: int) -> None:
+    """Ids outside SQLite's integer range cannot exist; report them as not found,
+    exactly like the in-memory store, instead of letting sqlite3 raise OverflowError."""
+    if not 1 <= task_id <= _MAX_ROWID:
+        raise TaskNotFound(task_id)
+
+
 def _row_to_task(row: sqlite3.Row) -> Task:
     return Task(
         id=row["id"],
@@ -55,6 +65,7 @@ class SqliteTaskStore:
         return [_row_to_task(r) for r in rows]
 
     def get(self, task_id: int) -> Task:
+        _check_id(task_id)
         with self._lock:
             row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
         if row is None:
@@ -72,6 +83,7 @@ class SqliteTaskStore:
         return Task(id=task_id, title=title, completed=False, created_at=created_at)
 
     def complete(self, task_id: int) -> Task:
+        _check_id(task_id)
         with self._lock:
             # Matching 0 rows is fine: the task was already completed (idempotent).
             self._conn.execute(
@@ -85,6 +97,7 @@ class SqliteTaskStore:
         return _row_to_task(row)
 
     def update(self, task_id: int, *, title: str | None = None, completed: bool | None = None) -> Task:
+        _check_id(task_id)
         with self._lock:
             row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
             if row is None:
@@ -104,6 +117,7 @@ class SqliteTaskStore:
         return _row_to_task(row)
 
     def delete(self, task_id: int) -> None:
+        _check_id(task_id)
         with self._lock:
             cur = self._conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
             self._conn.commit()
