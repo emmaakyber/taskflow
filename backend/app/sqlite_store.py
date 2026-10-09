@@ -84,6 +84,25 @@ class SqliteTaskStore:
             raise TaskNotFound(task_id)
         return _row_to_task(row)
 
+    def update(self, task_id: int, *, title: str | None = None, completed: bool | None = None) -> Task:
+        with self._lock:
+            row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+            if row is None:
+                raise TaskNotFound(task_id)
+            new_title = row["title"] if title is None else title
+            new_completed = bool(row["completed"]) if completed is None else completed
+            if new_completed == bool(row["completed"]):
+                new_completed_at = row["completed_at"]
+            else:
+                new_completed_at = utc_now() if new_completed else None
+            self._conn.execute(
+                "UPDATE tasks SET title = ?, completed = ?, completed_at = ? WHERE id = ?",
+                (new_title, int(new_completed), new_completed_at, task_id),
+            )
+            self._conn.commit()
+            row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        return _row_to_task(row)
+
     def delete(self, task_id: int) -> None:
         with self._lock:
             cur = self._conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))

@@ -105,6 +105,31 @@ SPEC = {
         "/tasks/{task_id}": {
             "parameters": [TASK_ID_PARAM],
             "get": {"summary": "Get one task", "responses": {"200": _task("The task"), "404": _error("No such task")}},
+            "patch": {
+                "summary": "Rename a task and/or set its completion (e.g. undo a complete)",
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "minProperties": 1,
+                                "additionalProperties": False,
+                                "properties": {
+                                    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+                                    "completed": {"type": "boolean"},
+                                },
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": _task("The updated task"),
+                    "400": _error("Empty body, unknown field, bad title or non-boolean completed"),
+                    "404": _error("No such task"),
+                    "415": _error("Body is not JSON"),
+                },
+            },
             "delete": {
                 "summary": "Delete a task",
                 "responses": {"204": {"description": "Deleted"}, "404": _error("No such task")},

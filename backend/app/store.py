@@ -83,6 +83,19 @@ class TaskStore:
                 task.completed_at = utc_now()
             return replace(task)
 
+    def update(self, task_id: int, *, title: str | None = None, completed: bool | None = None) -> Task:
+        """Rename and/or set completion. Un-completing clears completed_at."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                raise TaskNotFound(task_id)
+            if title is not None:
+                task.title = title
+            if completed is not None and completed != task.completed:
+                task.completed = completed
+                task.completed_at = utc_now() if completed else None
+            return replace(task)
+
     def delete(self, task_id: int) -> None:
         with self._lock:
             if task_id not in self._tasks:

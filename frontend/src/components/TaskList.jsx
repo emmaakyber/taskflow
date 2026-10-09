@@ -1,6 +1,6 @@
 import TaskItem from "./TaskItem.jsx";
 
-export default function TaskList({ tasks, loading, filter, busyIds, onComplete, onDelete }) {
+export default function TaskList({ tasks, loading, filter, busyIds, onComplete, onUndo, onDelete }) {
   if (loading) return <p className="muted">Loading tasks…</p>;
   if (tasks.length === 0) {
     return <p className="muted">{filter === "all" ? "No tasks yet. Add one above." : `No ${filter} tasks.`}</p>;
@@ -13,6 +13,7 @@ export default function TaskList({ tasks, loading, filter, busyIds, onComplete, 
           task={task}
           busy={busyIds.has(task.id)}
           onComplete={() => onComplete(task.id)}
+          onUndo={() => onUndo(task.id)}
           onDelete={() => onDelete(task.id)}
         />
       ))}

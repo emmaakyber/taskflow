@@ -1,6 +1,6 @@
 # TaskFlow MCP server (extra)
 
-A small [MCP](https://modelcontextprotocol.io) server that wraps the TaskFlow API as five tools: `list_tasks`, `create_task`, `complete_task`, `delete_task`, `task_stats`. It lets an agent (Claude Desktop, Claude Code, any MCP client) manage tasks through the same API the React UI uses.
+A small [MCP](https://modelcontextprotocol.io) server that wraps the TaskFlow API as six tools: `list_tasks`, `create_task`, `complete_task`, `update_task`, `delete_task`, `task_stats`. It lets an agent (Claude Desktop, Claude Code, any MCP client) manage tasks through the same API the React UI uses.
 
 Not part of `docker-compose up`; it is a thin client that runs wherever the agent runs.
 

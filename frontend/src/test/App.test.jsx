@@ -13,6 +13,7 @@ vi.mock("../api.js", async (importOriginal) => {
     listTasks: vi.fn(),
     createTask: vi.fn(),
     completeTask: vi.fn(),
+    updateTask: vi.fn(),
     deleteTask: vi.fn(),
     getStats: vi.fn(),
   };
@@ -99,6 +100,19 @@ describe("App", () => {
     expect(api.completeTask).toHaveBeenCalledWith(1);
     await waitFor(() => expect(screen.queryByRole("button", { name: "Complete" })).not.toBeInTheDocument());
     expect(screen.getByLabelText("Completed")).toBeInTheDocument();
+  });
+
+  it("undoes a completed task via PATCH and shows Complete again", async () => {
+    primeApi({ tasks: [task({ completed: true, completed_at: "2026-10-09T16:05:00Z" })], stats: { total: 1, completed: 1, pending: 0 } });
+    api.updateTask.mockResolvedValue(task());
+    render(<App />);
+    await screen.findByText("Write report");
+
+    primeApi({ tasks: [task()], stats: { total: 1, completed: 0, pending: 1 } });
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+
+    expect(api.updateTask).toHaveBeenCalledWith(1, { completed: false });
+    expect(await screen.findByRole("button", { name: "Complete" })).toBeInTheDocument();
   });
 
   it("deletes a task and refreshes the list", async () => {

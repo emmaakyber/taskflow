@@ -120,6 +120,53 @@ class TestCompleteTask:
         assert res.get_json()["error"]["code"] == "not_found"
 
 
+class TestUpdateTask:
+    def test_rename(self, client, make_task):
+        task = make_task("Old")
+        res = client.patch(f"/tasks/{task['id']}", json={"title": "  New  "})
+        assert res.status_code == 200
+        assert res.get_json()["title"] == "New"
+
+    def test_undo_complete_clears_timestamp(self, client, make_task):
+        task = make_task()
+        client.put(f"/tasks/{task['id']}/complete")
+        res = client.patch(f"/tasks/{task['id']}", json={"completed": False})
+        body = res.get_json()
+        assert body["completed"] is False
+        assert body["completed_at"] is None
+        assert client.get("/tasks/stats").get_json() == {"total": 1, "completed": 0, "pending": 1}
+
+    def test_complete_via_patch_sets_timestamp(self, client, make_task):
+        task = make_task()
+        body = client.patch(f"/tasks/{task['id']}", json={"completed": True}).get_json()
+        assert body["completed"] is True
+        assert body["completed_at"] is not None
+
+    def test_same_completion_keeps_timestamp(self, client, make_task):
+        task = make_task()
+        first = client.put(f"/tasks/{task['id']}/complete").get_json()
+        again = client.patch(f"/tasks/{task['id']}", json={"completed": True}).get_json()
+        assert again["completed_at"] == first["completed_at"]
+
+    @pytest.mark.parametrize(
+        "payload,fragment",
+        [
+            ({}, "at least one"),
+            ({"completed": "yes"}, "true or false"),
+            ({"title": ""}, "empty"),
+            ({"colour": "red"}, "Unknown field"),
+        ],
+    )
+    def test_rejects_bad_payload(self, client, make_task, payload, fragment):
+        task = make_task()
+        res = client.patch(f"/tasks/{task['id']}", json=payload)
+        assert res.status_code == 400
+        assert fragment in res.get_json()["error"]["message"]
+
+    def test_missing_task(self, client):
+        assert client.patch("/tasks/42", json={"title": "x"}).status_code == 404
+
+
 class TestDeleteTask:
     def test_deletes(self, client, make_task):
         task = make_task()
@@ -167,3 +214,9 @@ class TestErrorEnvelope:
 
     def test_health(self, client):
         assert client.get("/health").get_json() == {"status": "ok"}
+
+    def test_every_response_carries_a_request_id(self, client):
+        generated = client.get("/tasks/stats").headers["X-Request-ID"]
+        assert len(generated) == 12
+        echoed = client.get("/nope", headers={"X-Request-ID": "trace-7"}).headers["X-Request-ID"]
+        assert echoed == "trace-7"

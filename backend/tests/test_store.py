@@ -38,6 +38,19 @@ def test_delete_then_stats(store):
     assert store.stats() == {"total": 1, "completed": 1, "pending": 0}
 
 
+def test_update_toggles_completion_and_timestamp(store):
+    task = store.create("A")
+    done = store.update(task.id, completed=True)
+    assert done.completed and done.completed_at is not None
+    undone = store.update(task.id, title="B", completed=False)
+    assert (undone.title, undone.completed, undone.completed_at) == ("B", False, None)
+
+
+def test_update_missing_raises(store):
+    with pytest.raises(TaskNotFound):
+        store.update(99, title="x")
+
+
 def test_concurrent_creates_get_unique_ids(store):
     with ThreadPoolExecutor(max_workers=16) as pool:
         tasks = list(pool.map(lambda i: store.create(f"task {i}"), range(500)))

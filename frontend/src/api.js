@@ -36,5 +36,6 @@ async function request(path, options = {}) {
 export const listTasks = (status = "all") => request(`/tasks?status=${status}`);
 export const createTask = (title) => request("/tasks", { method: "POST", body: JSON.stringify({ title }) });
 export const completeTask = (id) => request(`/tasks/${id}/complete`, { method: "PUT" });
+export const updateTask = (id, changes) => request(`/tasks/${id}`, { method: "PATCH", body: JSON.stringify(changes) });
 export const deleteTask = (id) => request(`/tasks/${id}`, { method: "DELETE" });
 export const getStats = () => request("/tasks/stats");

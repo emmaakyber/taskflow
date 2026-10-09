@@ -62,6 +62,13 @@ def complete_task(task_id: int) -> dict:
 
 
 @mcp.tool()
+def update_task(task_id: int, title: str | None = None, completed: bool | None = None) -> dict:
+    """Rename a task and/or set completed (false re-opens it). Provide at least one field."""
+    changes = {k: v for k, v in {"title": title, "completed": completed}.items() if v is not None}
+    return _call("PATCH", f"/tasks/{task_id}", json=changes)
+
+
+@mcp.tool()
 def delete_task(task_id: int) -> str:
     """Delete a task by id."""
     _call("DELETE", f"/tasks/{task_id}")

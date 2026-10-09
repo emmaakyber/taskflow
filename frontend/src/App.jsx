@@ -59,6 +59,7 @@ export default function App() {
     await refresh();
   };
   const handleComplete = (id) => withBusy(id, () => api.completeTask(id));
+  const handleUndo = (id) => withBusy(id, () => api.updateTask(id, { completed: false }));
   const handleDelete = (id) => withBusy(id, () => api.deleteTask(id));
 
   return (
@@ -87,6 +88,7 @@ export default function App() {
         filter={filter}
         busyIds={busyIds}
         onComplete={handleComplete}
+        onUndo={handleUndo}
         onDelete={handleDelete}
       />
     </main>
