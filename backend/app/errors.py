@@ -9,7 +9,7 @@ Both our own ApiError subclasses and Werkzeug's HTTPExceptions (the 404s and
 
 from __future__ import annotations
 
-from flask import Flask, jsonify
+from flask import Flask, g, jsonify
 from werkzeug.exceptions import HTTPException
 
 from .store import TaskNotFound
@@ -59,5 +59,6 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(Exception)
     def handle_unexpected(err: Exception):
-        app.logger.exception("Unhandled error")
-        return error_response(500, "internal_error", "Something went wrong on our side.")
+        request_id = g.get("request_id", "-")
+        app.logger.exception("Unhandled error [request_id=%s]", request_id)
+        return error_response(500, "internal_error", f"Something went wrong on our side (request id {request_id}).")

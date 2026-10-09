@@ -9,6 +9,7 @@ from flask_cors import CORS
 
 from .errors import register_error_handlers
 from .openapi import SPEC
+from .request_id import register_request_id
 from .routes import bp as tasks_bp
 from .sqlite_store import SqliteTaskStore
 from .store import TaskStore
@@ -35,6 +36,7 @@ def create_app(store: TaskStore | SqliteTaskStore | None = None) -> Flask:
     # keeps direct browser calls (e.g. Vite dev server) working too.
     CORS(app, origins=os.environ.get("CORS_ORIGINS", "*"))
 
+    register_request_id(app)
     register_error_handlers(app)
     app.register_blueprint(tasks_bp)
 
