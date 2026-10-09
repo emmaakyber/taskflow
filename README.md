@@ -4,6 +4,8 @@ A small task manager: Flask REST API, React UI, both containerized and wired tog
 
 [![CI](https://github.com/emmaakyber/taskflow/actions/workflows/ci.yml/badge.svg)](https://github.com/emmaakyber/taskflow/actions/workflows/ci.yml)
 
+![TaskFlow UI: stats, add form, filter tabs, task list with Complete / Undo / Delete](docs/screenshot.jpg)
+
 ## Run it
 
 ```bash
