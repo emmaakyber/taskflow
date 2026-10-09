@@ -1,9 +1,10 @@
 """Unit tests for TaskStore, independent of Flask."""
+
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from app.store import TaskNotFound, TaskStore
+from app.store import TaskNotFound
 
 
 def test_create_and_get(store):

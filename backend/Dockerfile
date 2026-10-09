@@ -13,8 +13,13 @@ RUN pip install -r requirements-dev.txt
 
 COPY . .
 
-RUN useradd --create-home appuser && chown -R appuser:appuser /srv
+RUN useradd --create-home appuser && mkdir -p /data && chown -R appuser:appuser /srv /data
 USER appuser
+
+# Storage backend. Default keeps the brief's behaviour (in memory, lost on restart).
+# TASK_STORE=sqlite persists to /data, which docker-compose mounts as a named volume.
+ENV TASK_STORE=memory \
+    TASK_DB_PATH=/data/tasks.db
 
 EXPOSE 5000
 

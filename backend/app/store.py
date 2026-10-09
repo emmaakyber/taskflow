@@ -3,16 +3,17 @@
 The store is the only place task state lives. Routes never touch the dict
 directly, so swapping this for SQLite or Postgres later is a one-class change.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Lock
 
 
 def utc_now() -> str:
     """ISO-8601 UTC timestamp with second precision, e.g. 2026-10-09T14:03:21Z."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 @dataclass

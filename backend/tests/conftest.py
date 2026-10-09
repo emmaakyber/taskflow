@@ -1,11 +1,16 @@
 import pytest
 
 from app import create_app
+from app.sqlite_store import SqliteTaskStore
 from app.store import TaskStore
 
 
-@pytest.fixture
-def store():
+# Every test that uses `store` or `client` runs twice: once against the
+# in-memory store and once against SQLite. Same contract, two backends.
+@pytest.fixture(params=["memory", "sqlite"])
+def store(request):
+    if request.param == "sqlite":
+        return SqliteTaskStore(":memory:")
     return TaskStore()
 
 

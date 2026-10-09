@@ -13,6 +13,11 @@ services:
     environment:
       # Allow direct browser calls from the UI origin, in addition to the nginx proxy.
       - CORS_ORIGINS=http://localhost:3000
+      # Storage: "memory" (default, per the brief) or "sqlite" (persists across restarts):
+      #   TASK_STORE=sqlite docker-compose up --build
+      - TASK_STORE=${TASK_STORE:-memory}
+    volumes:
+      - taskdata:/data
     restart: unless-stopped
 
   frontend:
@@ -24,3 +29,6 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  taskdata:

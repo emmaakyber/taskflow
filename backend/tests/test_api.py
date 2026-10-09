@@ -1,4 +1,5 @@
 """Integration tests against the Flask test client: one class per endpoint."""
+
 import pytest
 
 

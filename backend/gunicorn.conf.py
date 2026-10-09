@@ -4,6 +4,7 @@ One worker on purpose: tasks live in process memory, so multiple workers would
 each hold a different task list. Threads provide concurrency instead; the
 store's lock keeps them safe.
 """
+
 import logging
 
 bind = "0.0.0.0:5000"

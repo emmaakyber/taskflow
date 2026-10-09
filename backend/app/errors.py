@@ -6,6 +6,7 @@ Shape:
 Both our own ApiError subclasses and Werkzeug's HTTPExceptions (the 404s and
 405s Flask raises on its own) go through here, so a client never sees HTML.
 """
+
 from __future__ import annotations
 
 from flask import Flask, jsonify
