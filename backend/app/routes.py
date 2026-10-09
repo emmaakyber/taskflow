@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify, request
 
-from .errors import ValidationError
+from .errors import UnsupportedMediaTypeError, ValidationError
 from .store import TaskStore
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
@@ -19,11 +19,7 @@ def store() -> TaskStore:
 def parse_task_payload() -> str:
     """Validate a create-task body and return the cleaned title."""
     if not request.is_json:
-        raise ValidationError(
-            "Request body must be JSON (set Content-Type: application/json).",
-            status=415,
-            code="unsupported_media_type",
-        )
+        raise UnsupportedMediaTypeError("Request body must be JSON (set Content-Type: application/json).")
     body = request.get_json(silent=True)
     if body is None:
         raise ValidationError("Request body is not valid JSON.")

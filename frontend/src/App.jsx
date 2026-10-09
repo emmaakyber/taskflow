@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api.js";
 import TaskForm from "./components/TaskForm.jsx";
 import TaskList from "./components/TaskList.jsx";
@@ -12,20 +12,25 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyIds, setBusyIds] = useState(new Set());
+  const requestSeq = useRef(0);
 
   // Tasks and stats are fetched together after every change. Stats come from
   // the API's own /tasks/stats rather than being derived client-side, so the
   // numbers shown are always the server's numbers.
+  // A sequence number guards against a slow earlier response (e.g. from a
+  // previous filter) landing after a newer one and overwriting it.
   const refresh = useCallback(async () => {
+    const seq = ++requestSeq.current;
     try {
       const [nextTasks, nextStats] = await Promise.all([api.listTasks(filter), api.getStats()]);
+      if (seq !== requestSeq.current) return;
       setTasks(nextTasks);
       setStats(nextStats);
       setError(null);
     } catch (err) {
-      setError(err.message);
+      if (seq === requestSeq.current) setError(err.message);
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [filter]);
 
@@ -37,10 +42,10 @@ export default function App() {
     setBusyIds((prev) => new Set(prev).add(id));
     try {
       await action();
-      await refresh();
     } catch (err) {
       setError(err.message);
     } finally {
+      await refresh(); // even after a failure (e.g. 404), show the server's current state
       setBusyIds((prev) => {
         const next = new Set(prev);
         next.delete(id);

@@ -32,9 +32,9 @@ class ValidationError(ApiError):
     code = "validation_error"
 
 
-class NotFoundError(ApiError):
-    status = 404
-    code = "not_found"
+class UnsupportedMediaTypeError(ApiError):
+    status = 415
+    code = "unsupported_media_type"
 
 
 def error_response(status: int, code: str, message: str):
@@ -52,7 +52,7 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(err: HTTPException):
-        # Covers unknown routes (404), wrong methods (405), bad JSON (400), etc.
+        # Covers errors Flask raises itself: unknown routes (404), wrong methods (405), etc.
         code = (err.name or "error").lower().replace(" ", "_")
         return error_response(err.code or 500, code, err.description or err.name)
 

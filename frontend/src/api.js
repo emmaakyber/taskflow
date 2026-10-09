@@ -16,8 +16,8 @@ async function request(path, options = {}) {
   let res;
   try {
     res = await fetch(`${BASE}${path}`, {
-      headers: { "Content-Type": "application/json", ...options.headers },
       ...options,
+      headers: { "Content-Type": "application/json", ...options.headers },
     });
   } catch {
     throw new ApiError(0, "network_error", "Could not reach the server.");

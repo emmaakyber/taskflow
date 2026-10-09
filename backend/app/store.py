@@ -5,7 +5,7 @@ directly, so swapping this for SQLite or Postgres later is a one-class change.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from threading import Lock
 
@@ -40,6 +40,9 @@ class TaskStore:
 
     IDs are integers that increase monotonically and are never reused, so a
     deleted task's id stays a 404 rather than silently pointing at a new task.
+
+    Every method returns a snapshot copy taken while holding the lock, so a
+    reader can never observe a half-applied update from another thread.
     """
 
     def __init__(self) -> None:
@@ -49,7 +52,7 @@ class TaskStore:
 
     def list(self, completed: bool | None = None) -> list[Task]:
         with self._lock:
-            tasks = list(self._tasks.values())
+            tasks = [replace(t) for t in self._tasks.values()]
         if completed is not None:
             tasks = [t for t in tasks if t.completed is completed]
         return tasks
@@ -57,16 +60,16 @@ class TaskStore:
     def get(self, task_id: int) -> Task:
         with self._lock:
             task = self._tasks.get(task_id)
-        if task is None:
-            raise TaskNotFound(task_id)
-        return task
+            if task is None:
+                raise TaskNotFound(task_id)
+            return replace(task)
 
     def create(self, title: str) -> Task:
         with self._lock:
             task = Task(id=self._next_id, title=title)
             self._tasks[task.id] = task
             self._next_id += 1
-        return task
+            return replace(task)
 
     def complete(self, task_id: int) -> Task:
         """Mark a task completed. Idempotent: completing twice is not an error."""
@@ -77,7 +80,7 @@ class TaskStore:
             if not task.completed:
                 task.completed = True
                 task.completed_at = utc_now()
-        return task
+            return replace(task)
 
     def delete(self, task_id: int) -> None:
         with self._lock:

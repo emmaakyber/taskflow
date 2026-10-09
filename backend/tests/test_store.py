@@ -8,7 +8,13 @@ from app.store import TaskNotFound, TaskStore
 
 def test_create_and_get(store):
     task = store.create("Write report")
-    assert store.get(task.id) is task
+    assert store.get(task.id) == task
+
+
+def test_returns_snapshots_not_live_objects(store):
+    task = store.create("A")
+    task.title = "mutated by caller"
+    assert store.get(task.id).title == "A"
 
 
 def test_get_missing_raises(store):
@@ -18,10 +24,10 @@ def test_get_missing_raises(store):
 
 def test_complete_is_idempotent(store):
     task = store.create("A")
-    store.complete(task.id)
-    first_stamp = task.completed_at
-    store.complete(task.id)
-    assert task.completed_at == first_stamp
+    first = store.complete(task.id)
+    second = store.complete(task.id)
+    assert first.completed_at is not None
+    assert second.completed_at == first.completed_at
 
 
 def test_delete_then_stats(store):

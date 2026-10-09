@@ -10,6 +10,8 @@ A small task manager: Flask REST API, React UI, both containerized and wired tog
 docker-compose up --build
 ```
 
+(`docker compose up --build`, without the hyphen, works identically on Compose v2.)
+
 | Service  | URL                   | What's there                                  |
 |----------|-----------------------|-----------------------------------------------|
 | Frontend | http://localhost:3000 | React UI (nginx serves the build, proxies `/api` to the backend) |
@@ -90,7 +92,7 @@ backend/
   app/routes.py       /tasks blueprint and request validation
   app/store.py        Task dataclass + TaskStore (the only place state lives)
   app/errors.py       ApiError classes and the global error handlers
-  tests/              39 tests: API integration (test client) + store unit tests
+  tests/              40 tests: API integration (test client) + store unit tests
   Dockerfile          python:3.12-slim, non-root, gunicorn, healthcheck
 frontend/
   src/api.js          fetch wrapper that turns the error envelope into thrown ApiErrors
@@ -105,7 +107,7 @@ docker-compose.yml
 
 ## Assumptions and simplifications
 
-- **In-memory storage, one gunicorn worker.** Tasks live in the process. Running one worker with eight threads (instead of several workers) is deliberate: multiple workers would each hold a different task list. The store takes a lock around every mutation so the threads are safe. Restarting the container clears all tasks.
+- **In-memory storage, one gunicorn worker.** Tasks live in the process. Running one worker with eight threads (instead of several workers) is deliberate: multiple workers would each hold a different task list. The store takes a lock around every operation and hands back snapshot copies, so a reader can never see a half-applied update from another thread. Restarting the container clears all tasks.
 - **Integer IDs, monotonic, never reused.** Simpler for the sample `curl` commands than UUIDs, and a deleted id stays a clean 404.
 - **Completing is idempotent.** A second `PUT .../complete` returns 200 with the unchanged task. A 409 would be defensible; I chose the behaviour that is friendlier to retries.
 - **No un-complete, no title edit, no reordering.** Not in the brief; see "one extra hour".
@@ -122,7 +124,7 @@ docker-compose.yml
 
 ### How did you handle API errors?
 
-One envelope, everywhere. The backend defines a small `ApiError` hierarchy (`ValidationError` → 400, `NotFoundError` → 404, and a 415 variant for wrong content type) and registers global Flask handlers for those, for the store's own `TaskNotFound`, for Werkzeug's `HTTPException` (so Flask's native 404/405 come back as JSON, never HTML), and for bare `Exception` (logged, returned as a generic 500 so internals never leak). Validation runs fully before any state changes, and messages are specific: `Field 'title' must be at most 200 characters.` rather than `Bad request`.
+One envelope, everywhere. The backend defines a small `ApiError` hierarchy (`ValidationError` → 400, `UnsupportedMediaTypeError` → 415) and registers global Flask handlers for those, for the store's own `TaskNotFound` (→ 404), for Werkzeug's `HTTPException` (so Flask's native 404/405 come back as JSON, never HTML), and for bare `Exception` (logged, returned as a generic 500 so internals never leak). Validation runs fully before any state changes, and messages are specific: `Field 'title' must be at most 200 characters.` rather than `Bad request`.
 
 On the frontend, `api.js` is the only place `fetch` is called. It parses the envelope and throws an `ApiError` carrying the server's message, so components just catch and display. Form errors show inline under the input; list-level errors show in a banner with a retry. Buttons are disabled while their request is in flight so a double-click can't fire two deletes.
 

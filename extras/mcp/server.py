@@ -26,11 +26,17 @@ mcp = FastMCP("taskflow")
 
 def _call(method: str, path: str, **kwargs) -> dict | list | None:
     """Hit the API and surface its error envelope as a readable exception."""
-    with httpx.Client(base_url=API_URL, timeout=5.0) as client:
-        res = client.request(method, path, **kwargs)
+    try:
+        with httpx.Client(base_url=API_URL, timeout=5.0) as client:
+            res = client.request(method, path, **kwargs)
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"backend_unreachable: could not reach {API_URL} ({exc.__class__.__name__})") from exc
     if res.status_code == 204:
         return None
-    body = res.json()
+    try:
+        body = res.json()
+    except ValueError:
+        raise RuntimeError(f"bad_response: HTTP {res.status_code} with a non-JSON body") from None
     if res.is_error:
         err = body.get("error", {})
         raise RuntimeError(f"{err.get('code', 'error')}: {err.get('message', res.text)}")
