@@ -97,6 +97,7 @@ frontend/
   src/App.jsx         state + data flow; components/ are presentational
   nginx.conf          static serving + /api proxy
   Dockerfile          multi-stage: node builds, nginx serves
+extras/mcp/           MCP server exposing the API as agent tools (optional)
 scripts/smoke.sh      end-to-end check against a running stack
 .github/workflows/    CI: pytest, frontend build, then a real compose up + smoke
 docker-compose.yml
@@ -112,6 +113,10 @@ docker-compose.yml
 - **Stats come from the API.** The UI calls `/tasks/stats` after every change rather than counting client-side, so the numbers shown are always the server's.
 - **Dev dependencies are in the backend image** so `docker-compose run --rm backend pytest` works out of the box. In a production image I'd split a test stage.
 - **Minimal styling, no component library.** Plain CSS, a handful of classes, accessible labels and `aria-live` on the stats.
+
+## Extra: MCP server
+
+`extras/mcp/server.py` wraps the same API as five MCP tools (`list_tasks`, `create_task`, `complete_task`, `delete_task`, `task_stats`) so an agent in Claude Desktop or Claude Code can manage tasks. It is a thin client, not part of `docker-compose up`, and it passes the API's own error messages through to the agent (a 404 arrives as `not_found: Task 9999 does not exist`) so the model can correct itself. Setup in [extras/mcp/README.md](extras/mcp/README.md).
 
 ## Questions
 
@@ -136,7 +141,7 @@ Each error class has a test: `tests/test_api.py::TestCreateTask::test_rejects_ba
 1. **Persistence behind the same interface.** `TaskStore` is already the only thing that knows where tasks live, so a `SqliteTaskStore` with the same five methods, selected by an environment variable, is about 40 lines plus a volume in `docker-compose.yml`. Then the one-worker constraint goes away too.
 2. **`PATCH /tasks/<id>`** for renaming and un-completing, with the same validation path as create.
 3. **An OpenAPI document** served at `/openapi.json`, generated from the route definitions, so the API is self-describing.
-4. **An MCP server over this API** (`extras/mcp/`), exposing create/list/complete/delete/stats as tools so an agent in Claude Desktop or Claude Code can manage tasks. Same client logic as `api.js`, different consumer. Given how much of the tooling world is moving to agent-first access, this is the extension I'd actually reach for first.
+4. **Optimistic UI updates** with rollback on failure, so Complete and Delete feel instant instead of waiting for the round trip. Skipped deliberately: the refetch-after-mutation approach is simpler to reason about and always shows server truth.
 
 ## How I worked
 
