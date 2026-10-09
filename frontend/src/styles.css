@@ -1,14 +1,14 @@
-/* Palette and button treatment borrowed from carbonarc.co: near-black navy,
-   one orange accent, pill buttons with uppercase mono labels. Layout and
-   component structure are unchanged; this file is still the whole design. */
+/* Palette and button treatment borrowed from carbonarc.co: black background,
+   charcoal cards, one orange accent, pill buttons with uppercase mono labels.
+   Layout and component structure are unchanged; this file is still the whole design. */
 :root {
-  --bg: #0b1020;
-  --bg-wash: radial-gradient(1200px 600px at 50% -10%, #142a5c 0%, #0b1020 60%);
-  --card: #151a2b;
-  --card-border: #26304a;
+  --bg: #0a0a0b;
+  --bg-wash: radial-gradient(1200px 500px at 50% -10%, #1c1c1e 0%, #0a0a0b 60%);
+  --card: #1c1c1e;
+  --card-border: #373737;
   --text: #f5f6fa;
   --muted: #9ca3af;
-  --border: #26304a;
+  --border: #373737;
   --accent: #ff5a00;
   --accent-hover: #ff8a3d;
   --danger: #ff6b6b;
