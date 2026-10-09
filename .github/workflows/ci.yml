@@ -35,10 +35,20 @@ jobs:
       - run: npm run build
         working-directory: frontend
 
+  mcp-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt -r extras/mcp/requirements-dev.txt
+      - run: pytest extras/mcp -q
+
   compose-smoke:
     # The real test: build both images the way a reviewer would and hit the API.
     runs-on: ubuntu-latest
-    needs: [backend-lint-and-tests, frontend-tests-and-build]
+    needs: [backend-lint-and-tests, frontend-tests-and-build, mcp-tests]
     steps:
       - uses: actions/checkout@v4
       - run: docker compose up --build -d

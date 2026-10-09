@@ -24,3 +24,9 @@ Claude Desktop (`claude_desktop_config.json`):
 ```
 
 Errors from the API (404 on a missing id, 400 on an empty title) are surfaced to the agent with the API's own `code: message` text, so the model can correct itself rather than guess.
+
+Tested end to end in `test_server.py`: a real Flask app on a local port, this server launched as a subprocess over stdio exactly as Claude Desktop would, and all six tools driven through the MCP SDK's client, including the error paths. Runs in CI.
+
+```bash
+pip install -r requirements-dev.txt && pytest -q
+```

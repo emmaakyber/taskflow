@@ -12,6 +12,7 @@ Claude Desktop config:
         "args": ["/abs/path/to/extras/mcp/server.py"],
         "env": {"TASKFLOW_API_URL": "http://localhost:5000"}}}}
 """
+
 from __future__ import annotations
 
 import os

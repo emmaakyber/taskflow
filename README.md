@@ -142,7 +142,7 @@ frontend/
   Dockerfile          multi-stage: node builds, nginx serves
 extras/mcp/           MCP server exposing the API as agent tools (optional)
 scripts/smoke.sh      end-to-end check against a running stack
-.github/workflows/    CI: ruff + pytest, vitest + build, then a real compose up + smoke
+.github/workflows/    CI: ruff + pytest, vitest + build, MCP end-to-end, then a real compose up + smoke
 Makefile              make up / test / lint / smoke
 docker-compose.yml
 ```
@@ -161,7 +161,7 @@ docker-compose.yml
 
 ## Extra: MCP server
 
-`extras/mcp/server.py` wraps the same API as six MCP tools (`list_tasks`, `create_task`, `complete_task`, `update_task`, `delete_task`, `task_stats`) so an agent in Claude Desktop or Claude Code can manage tasks. It is a thin client, not part of `docker-compose up`, and it passes the API's own error messages through to the agent (a 404 arrives as `not_found: Task 9999 does not exist`) so the model can correct itself. Setup in [extras/mcp/README.md](extras/mcp/README.md).
+`extras/mcp/server.py` wraps the same API as six MCP tools (`list_tasks`, `create_task`, `complete_task`, `update_task`, `delete_task`, `task_stats`) so an agent in Claude Desktop or Claude Code can manage tasks. It is a thin client, not part of `docker-compose up`, and it passes the API's own error messages through to the agent (a 404 arrives as `not_found: Task 9999 does not exist`) so the model can correct itself. It has its own end-to-end test (real Flask app, server as a stdio subprocess, all six tools through the SDK client), run in CI. Setup in [extras/mcp/README.md](extras/mcp/README.md).
 
 ## Questions
 
