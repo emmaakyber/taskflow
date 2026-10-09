@@ -21,6 +21,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=5s --timeout=3s --start-period=3s --retries=5 \
   CMD python -c "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2).status == 200 else 1)"
 
-# One worker on purpose: tasks live in process memory, so multiple workers
-# would each hold a different task list. Threads give us concurrency instead.
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "8", "--access-logfile", "-", "wsgi:app"]
+# Worker/thread choices and log filtering live in gunicorn.conf.py.
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "wsgi:app"]

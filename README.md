@@ -94,6 +94,7 @@ backend/
   app/errors.py       ApiError classes and the global error handlers
   tests/              40 tests: API integration (test client) + store unit tests
   Dockerfile          python:3.12-slim, non-root, gunicorn, healthcheck
+  gunicorn.conf.py    1 worker / 8 threads (why: in-memory store), healthcheck log filter
 frontend/
   src/api.js          fetch wrapper that turns the error envelope into thrown ApiErrors
   src/App.jsx         state + data flow; components/ are presentational
