@@ -157,7 +157,7 @@ docker-compose.yml
 - **No auth, no pagination; persistence only via the opt-in SQLite store.** Out of scope for a two-hour exercise, and each would be a layer on top of the current structure rather than a rewrite.
 - **Stats come from the API.** The UI calls `/tasks/stats` after every change rather than counting client-side, so the numbers shown are always the server's.
 - **Dev dependencies are in the backend image** so `docker-compose run --rm backend pytest` works out of the box. In a production image I'd split a test stage.
-- **Minimal styling, no component library.** Plain CSS, a handful of classes, accessible labels and `aria-live` on the stats.
+- **Minimal styling, no component library.** Plain CSS in one file, accessible labels and `aria-live` on the stats. The palette and pill buttons are borrowed from carbonarc.co, so it's still minimal, just not generic.
 
 ## Extra: MCP server
 
