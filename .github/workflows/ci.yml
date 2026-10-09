@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  backend-tests:
+  backend-lint-and-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,10 +14,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r backend/requirements-dev.txt
+      - run: ruff check . && ruff format --check .
+        working-directory: backend
       - run: pytest
         working-directory: backend
 
-  frontend-build:
+  frontend-tests-and-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,13 +30,15 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
         working-directory: frontend
+      - run: npm test
+        working-directory: frontend
       - run: npm run build
         working-directory: frontend
 
   compose-smoke:
     # The real test: build both images the way a reviewer would and hit the API.
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-build]
+    needs: [backend-lint-and-tests, frontend-tests-and-build]
     steps:
       - uses: actions/checkout@v4
       - run: docker compose up --build -d

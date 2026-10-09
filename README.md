@@ -25,10 +25,22 @@ Then verify with the smoke test, which runs the exact sample calls from the brie
 
 > **macOS note:** port 5000 is often held by AirPlay Receiver. If the backend fails to bind, either turn AirPlay Receiver off in System Settings, or run `BACKEND_PORT=5001 docker-compose up --build` and `./scripts/smoke.sh http://localhost:5001`. The UI keeps working either way because it reaches the backend over the Compose network, not through the host port.
 
-Run the backend tests inside the container:
+Run the backend tests inside the container (82 cases, each run against both storage backends):
 
 ```bash
 docker-compose run --rm backend pytest
+```
+
+Frontend tests (Vitest + React Testing Library) run locally or in CI:
+
+```bash
+cd frontend && npm ci && npm test
+```
+
+Optional: persist tasks across restarts with the SQLite store instead of memory. Same API, same tests, one env var:
+
+```bash
+TASK_STORE=sqlite docker-compose up --build
 ```
 
 ## How it fits together
@@ -39,9 +51,11 @@ docker-compose run --rm backend pytest
                 │   └── /api/*     → proxy → http://backend:5000/*
                 ▼
             :5000  gunicorn → Flask (backend container)
-                   routes.py  (validate, map HTTP ↔ store)
-                   store.py   (TaskStore: in-memory, thread-safe)
-                   errors.py  (one JSON error envelope for everything)
+                   routes.py        (validate, map HTTP ↔ store)
+                   store.py         (TaskStore: in-memory, thread-safe)  ← default
+                   sqlite_store.py  (SqliteTaskStore: same interface)    ← TASK_STORE=sqlite
+                   errors.py        (one JSON error envelope for everything)
+                   openapi.py       (spec served at /openapi.json)
 ```
 
 The frontend never hardcodes a backend address. In Docker, nginx proxies `/api` to the `backend` service by name. In local dev, Vite's dev server does the same proxying. CORS is also enabled on the API so direct browser calls work if someone wires it up differently.
@@ -57,6 +71,7 @@ The frontend never hardcodes a backend address. In Docker, nginx proxies `/api` 
 | DELETE | `/tasks/<id>`           | 204          | IDs are never reused, so a deleted id stays a 404 |
 | GET    | `/tasks/stats`          | 200 `{"total", "completed", "pending"}` | |
 | GET    | `/health`               | 200 `{"status": "ok"}` | Used by the Docker healthcheck |
+| GET    | `/openapi.json`         | 200 OpenAPI 3.0 | A contract test keeps it in sync with the routing table |
 
 A task:
 
@@ -90,25 +105,31 @@ Every error, including the ones Flask raises itself (unknown route, wrong method
 backend/
   app/__init__.py     app factory, CORS, health route
   app/routes.py       /tasks blueprint and request validation
-  app/store.py        Task dataclass + TaskStore (the only place state lives)
+  app/store.py        Task dataclass + TaskStore (in-memory; the only place state lives)
+  app/sqlite_store.py SqliteTaskStore: same six methods, opt-in via TASK_STORE=sqlite
   app/errors.py       ApiError classes and the global error handlers
-  tests/              40 tests: API integration (test client) + store unit tests
+  app/openapi.py      OpenAPI 3.0 document
+  tests/              82 cases: API integration + store unit tests, parametrized over both stores,
+                      plus a contract test that the OpenAPI spec matches Flask's routing table
+  pyproject.toml      Ruff config (lint + format, enforced in CI)
   Dockerfile          python:3.12-slim, non-root, gunicorn, healthcheck
   gunicorn.conf.py    1 worker / 8 threads (why: in-memory store), healthcheck log filter
 frontend/
   src/api.js          fetch wrapper that turns the error envelope into thrown ApiErrors
   src/App.jsx         state + data flow; components/ are presentational
+  src/test/           8 Vitest + React Testing Library tests (states, form, actions, filters)
   nginx.conf          static serving + /api proxy
   Dockerfile          multi-stage: node builds, nginx serves
 extras/mcp/           MCP server exposing the API as agent tools (optional)
 scripts/smoke.sh      end-to-end check against a running stack
-.github/workflows/    CI: pytest, frontend build, then a real compose up + smoke
+.github/workflows/    CI: ruff + pytest, vitest + build, then a real compose up + smoke
 docker-compose.yml
 ```
 
 ## Assumptions and simplifications
 
-- **In-memory storage, one gunicorn worker.** Tasks live in the process. Running one worker with eight threads (instead of several workers) is deliberate: multiple workers would each hold a different task list. The store takes a lock around every operation and hands back snapshot copies, so a reader can never see a half-applied update from another thread. Restarting the container clears all tasks.
+- **In-memory storage by default, one gunicorn worker.** Tasks live in the process, as the brief allows. Running one worker with eight threads (instead of several workers) is deliberate: multiple workers would each hold a different task list. The store takes a lock around every operation and hands back snapshot copies, so a reader can never see a half-applied update from another thread. Restarting the container clears all tasks.
+- **SQLite is there to prove the boundary, not to change the default.** `SqliteTaskStore` implements the same six methods. The whole API test suite is parametrized to run against both, so "swap the store" is tested, not promised. With `TASK_STORE=sqlite` the data lives on a named volume and survives restarts.
 - **Integer IDs, monotonic, never reused.** Simpler for the sample `curl` commands than UUIDs, and a deleted id stays a clean 404.
 - **Completing is idempotent.** A second `PUT .../complete` returns 200 with the unchanged task. A 409 would be defensible; I chose the behaviour that is friendlier to retries.
 - **No un-complete, no title edit, no reordering.** Not in the brief; see "one extra hour".
@@ -133,19 +154,29 @@ Each error class has a test: `tests/test_api.py::TestCreateTask::test_rejects_ba
 
 ### What tests would you write if given more time?
 
-- **Frontend component tests** (Vitest + React Testing Library): the form clears on success and shows the server message on failure; Complete/Delete disable while pending; the filter tabs request the right `status`.
+- **More frontend tests.** Eight exist (`frontend/src/test/App.test.jsx`): render, empty state, create success and inline validation error, complete, delete, filter tabs, load-failure banner. I'd add: buttons disabled while a request is in flight, the stale-response guard when switching filters quickly, and `api.js` itself against a mocked `fetch` (204 handling, non-JSON bodies, network errors).
 - **A compose-level integration test in CI.** The current CI already does `docker compose up --build` and runs the smoke script, but I'd turn the smoke script into proper assertions with a JSON-aware tool and add the frontend path (`/api/tasks` through nginx) to it.
 - **Property-based test on `TaskStore`** (Hypothesis): for any sequence of create/complete/delete operations, `stats()` always equals what you'd compute from `list()`, and ids are unique and increasing.
 - **Concurrency test with real HTTP**: fire 200 parallel `POST`s at the running gunicorn and assert 200 unique ids. The store-level version of this exists (`test_store.py::test_concurrent_creates_get_unique_ids`); this would prove it through the whole stack.
-- **Contract test** against an OpenAPI spec once one exists, so the docs can't drift from the implementation.
+- **Schema validation against the OpenAPI spec.** The contract test today checks that paths and methods match the routing table. Next step is validating real responses against the schemas in the spec (e.g. with `openapi-core`), so a field rename fails a test.
 
 ### What would you improve with 1 extra hour?
 
-1. **Persistence behind the same interface.** `TaskStore` is already the only thing that knows where tasks live, so a `SqliteTaskStore` with the same five methods, selected by an environment variable, is about 40 lines plus a volume in `docker-compose.yml`. Then the one-worker constraint goes away too.
-2. **`PATCH /tasks/<id>`** for renaming and un-completing, with the same validation path as create.
-3. **An OpenAPI document** served at `/openapi.json`, generated from the route definitions, so the API is self-describing.
+1. **`PATCH /tasks/<id>`** for renaming and un-completing, with the same validation path as create, and an inline edit in the UI.
+2. **Multi-worker gunicorn when SQLite is selected.** The one-worker constraint only exists for the in-memory store; with `TASK_STORE=sqlite` the config could scale workers, with WAL mode on the connection.
+3. **A `docker-compose.dev.yml` override** with bind mounts, Flask reload and the Vite dev server, so the Docker path and the local-dev path are the same command.
 4. **Optimistic UI updates** with rollback on failure, so Complete and Delete feel instant instead of waiting for the round trip. Skipped deliberately: the refetch-after-mutation approach is simpler to reason about and always shows server truth.
+
+## What was verified before submitting
+
+- `pytest`: 82 cases locally and inside the container, every API and store test against both backends.
+- `npm test`: 8 frontend tests. `ruff check` and `ruff format --check` clean.
+- `docker-compose up --build` from this checkout, then `scripts/smoke.sh` against it (the brief's sample calls plus error cases), then the UI through nginx including `/api/openapi.json`.
+- Backend container restarted while the stack ran: the UI kept working (nginx re-resolves the service name).
+- `TASK_STORE=sqlite`: created a task, restarted the backend, task still there.
+- A fresh `git clone` into an empty directory and `docker-compose up --build` again, because the version that matters is the one a reviewer runs from zero.
+- CI green on every push: lint, both test suites, and a real compose build with the smoke test.
 
 ## How I worked
 
-I used Claude Code throughout: I set the structure and the decisions (store/route split, error envelope, idempotent complete, nginx proxy over CORS, one worker), it drafted the files, and I reviewed every one before it went in. Verification was the part I didn't delegate: tests green locally, then the whole stack brought up with `docker-compose up --build` and the smoke script run against it, then a fresh `git clone` into an empty directory and the same command again, because the version that matters is the one a reviewer runs from zero.
+I used Claude Code throughout: I set the structure and the decisions (store/route split, error envelope, idempotent complete, nginx proxy over CORS, one worker, SQLite as opt-in proof rather than a new default), it drafted the files, and I reviewed every one before it went in. After the first complete version I ran an independent review pass over the repo, which turned up ten small issues (a read that could observe a half-applied update, nginx caching the backend's IP, a stale-response race in the UI, and some README drift); all are fixed in the commit history. Verification was the part I didn't delegate.
