@@ -91,6 +91,7 @@ def test_task_responses_match_schema(api, make_task):
         _response_schema("/tasks/{task_id}", "patch", "200"),
     )
     _validate(api.get("/tasks/stats").get_json(), _response_schema("/tasks/stats", "get", "200"))
+    _validate(api.delete(f"/tasks/{created['id']}").get_json(), _response_schema("/tasks/{task_id}", "delete", "200"))
 
 
 @pytest.mark.parametrize(

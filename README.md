@@ -84,7 +84,7 @@ The frontend never hardcodes a backend address. In Docker, nginx proxies `/api` 
 | GET    | `/tasks/<id>`           | 200 `Task`   | |
 | PUT    | `/tasks/<id>/complete`  | 200 `Task`   | Idempotent: completing twice returns the same task, not an error |
 | PATCH  | `/tasks/<id>`           | 200 `Task`   | Body `{"title"?: "...", "completed"?: bool}`; the UI's Undo is `{"completed": false}` |
-| DELETE | `/tasks/<id>`           | 204          | IDs are never reused, so a deleted id stays a 404 |
+| DELETE | `/tasks/<id>`           | 200 `{"id", "deleted": true}` | Small body instead of a bare 204 so a terminal curl shows a result. IDs are never reused, so a deleted id stays a 404 |
 | GET    | `/tasks/stats`          | 200 `{"total", "completed", "pending"}` | |
 | GET    | `/health`               | 200 `{"status": "ok"}` | Used by the Docker healthcheck |
 | GET    | `/openapi.json`         | 200 OpenAPI 3.0 | A contract test keeps it in sync with the routing table |

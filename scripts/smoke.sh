@@ -38,8 +38,8 @@ check "PUT /tasks/$ID/complete marks completed" '"completed":true' "$(echo "$COM
 STATS=$(curl -s "$BASE/tasks/stats")
 check "GET /tasks/stats counts 1 total, 1 completed" '"total":1,"completed":1,"pending":0' "$(echo "$STATS" | tr -d '\n')"
 
-DEL_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE/tasks/$ID")
-check "DELETE /tasks/$ID returns 204" "204" "$DEL_CODE"
+DEL=$(curl -s -X DELETE "$BASE/tasks/$ID")
+check "DELETE /tasks/$ID confirms deletion" '"deleted":true' "$(echo "$DEL" | tr -d '\n')"
 
 echo "error handling:"
 NF=$(curl -s -w " %{http_code}" -X PUT "$BASE/tasks/$ID/complete")

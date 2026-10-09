@@ -181,7 +181,9 @@ class TestUpdateTask:
 class TestDeleteTask:
     def test_deletes(self, client, make_task):
         task = make_task()
-        assert client.delete(f"/tasks/{task['id']}").status_code == 204
+        res = client.delete(f"/tasks/{task['id']}")
+        assert res.status_code == 200
+        assert res.get_json() == {"id": task["id"], "deleted": True}
         assert client.get(f"/tasks/{task['id']}").status_code == 404
         assert client.get("/tasks").get_json() == []
 

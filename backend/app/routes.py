@@ -110,5 +110,7 @@ def update_task(task_id: int):
 
 @bp.delete("/<int:task_id>")
 def delete_task(task_id: int):
+    # 200 with a small body rather than a bare 204, so a curl in a terminal
+    # confirms what happened instead of printing nothing.
     store().delete(task_id)
-    return "", 204
+    return jsonify({"id": task_id, "deleted": True})

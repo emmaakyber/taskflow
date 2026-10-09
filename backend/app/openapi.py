@@ -144,7 +144,24 @@ SPEC = {
             },
             "delete": {
                 "summary": "Delete a task",
-                "responses": {"204": {"description": "Deleted"}, "404": _error("No such task")},
+                "responses": {
+                    "200": {
+                        "description": "Deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["id", "deleted"],
+                                    "properties": {
+                                        "id": {"type": "integer"},
+                                        "deleted": {"type": "boolean", "enum": [True]},
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "404": _error("No such task"),
+                },
             },
         },
         "/tasks/{task_id}/complete": {
